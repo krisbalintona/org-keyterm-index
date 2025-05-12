@@ -1,0 +1,11 @@
+#+title: NEWS
+
+* Unreleased
+
+** Changes
+
++ Use [[https://github.com/ndwarshuis/org-ml][org-ml]] instead of using org-element.el alongside manual modifications of the buffer with ~insert~, ~replace-buffer-contents~, and the like.
+
+* 0.0.1 --- 2025-05-12
+
++ Introduce ~org-keyterm-index-update-buffer~ and basic user options.
