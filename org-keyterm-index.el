@@ -6,8 +6,7 @@
 ;; URL: https://github.com/krisbalintona/org-keyterm-index
 ;; Keywords: text, convenience
 ;; Version: 0.0.1
-;; Package-Requires: ((emacs "30.1"))
-
+;; Package-Requires: ((emacs "30.1") (org-ml "6.0.0"))
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -27,7 +26,7 @@
 ;; Like `org-make-toc' but to create book-like indices (for keyterm-page pairs).
 
 ;;; Code:
-(require 'org-element)
+(require 'org-ml)
 
 ;;; Variables
 
@@ -37,7 +36,7 @@
   :group 'org-mode
   :prefix "org-keyterm-index-")
 
-(defcustom org-keyterm-index-keyterm-name "KEYTERM"
+(defcustom org-keyterm-index-keyword-name "KEYTERM"
   "Name of the org keyterm used to store the index contents.
 For instance, a value of \"KEYTERM\" means that #+KEYTERM: will
 associate a keyterm with pages.
@@ -53,116 +52,107 @@ Capitalization has no effect."
 (defconst org-keyterm-index-property-value-name "KEYTERM_INDEX"
   "Name of the drawer used to store the index contents.")
 
-(defconst org-keyterm-index-drawer-start-regexp
-  (rx bol (0+ blank) ":" (literal org-keyterm-index-drawer-name)":" (0+ blank) eol)
-  "Regular expression for the beginning of the index drawer.
-Based on the drawer name supplied by `org-keyterm-index-drawer-name'.")
-
 ;;; Functions
-
-;; REVIEW 2025-05-11: Don't use any insert functions, only modify the AST then
-;; interpret it?
 
 ;; TODO 2025-05-08: Allow several formatting options? Plain list and table come
 ;; to mind.
+(defun org-keyterm-index-generate-index-drawer (parse-tree)
+  "Return an org-element drawer for keyterms in PARSE-TREE.
+If there are no keyterms to inside PARSE-TREE, return nil.
 
-(defun org-keyterm-index-generate-index (parse-tree)
-  "Return the keyterm index as a string.
 PARSE-TREE is the org-element parse tree scanned for keyterms."
-  (let* ((index-table (make-hash-table :test #'equal))
-         lines)
-    (org-element-map parse-tree '(keyword)
+  (let ((index-table (make-hash-table :test #'equal))
+        list-items)
+    ;; FIXME 2025-05-12: Not sure why `org-ml-match-do*' does not work.  Created
+    ;; issue upstream: https://github.com/ndwarshuis/org-ml/issues/49
+    (org-ml-match-do `(:any * (:and keyword (:key ,org-keyterm-index-keyword-name)))
+      ;; TODO 2025-05-13: Handle cases in which user strings are erroneous
       (lambda (keyword-element)
-        (when (string-equal-ignore-case (org-element-property :key keyword-element)
-                                        org-keyterm-index-keyterm-name)
-          (let* ((components
-                  (mapcar #'string-trim (string-split (org-element-property :value keyword-element) "::")))
-                 (keyterm (car components))
-                 ;; TODO 2025-05-08: Handle case of no pages
-                 (pages (cdr components)))
-            (puthash keyterm (append pages (gethash keyterm index-table)) index-table)))))
+        (let* ((components (mapcar #'string-trim (string-split (org-ml-get-property :value keyword-element) "::")))
+               (keyterm (car components))
+               (pages (cdr components)))
+          (puthash keyterm (append pages (gethash keyterm index-table)) index-table)))
+      parse-tree)
     (maphash
      (lambda (keyterm pages)
-       (push (format "- %s :: %s"
-                     keyterm
-                     (string-join (reverse pages) ", "))
-             lines))
+       (push (org-ml-build-item! :bullet '-
+                                 :tag keyterm
+                                 :paragraph (string-join (reverse pages) ", "))
+             list-items))
      index-table)
-    (string-join (sort lines #'string<) "\n")))
+    (when list-items
+      (org-ml-build-drawer org-keyterm-index-drawer-name (apply #'org-ml-build-plain-list list-items)))))
 
-(defun org-keyterm-index--replace-drawer-contents (drawer new-contents)
-  "Replace the contents of DRAWER with NEW-CONTENTS.
-DRAWER is an org-element drawer whose text will be replaced with
-NEW-CONTENTS."
-  (when (string-equal-ignore-case (org-element-property :drawer-name drawer) org-keyterm-index-drawer-name)
-    (let ((beg (org-element-begin drawer))
-          (end (- (org-element-end drawer) (org-element-post-blank drawer)))
-          ;; For cleanliness, we ensure that the drawer block's delimiters are
-          ;; capitalized
-          (drawer-text
-           (concat ":" (upcase org-keyterm-index-drawer-name) ":\n" new-contents "\n:END:\n")))
-      (if (and beg end)
-          (replace-region-contents beg end drawer-text)
-        ;; When there are no contents in the drawer
-        (save-excursion
-          (goto-char beg)
-          (forward-line 1)
-          (insert drawer-text))))
-    t))
-
-(defun org-keyterm-index--update-headline-index (headline scope)
+(defun org-keyterm-index-update-headline (headline scope)
   "Update HEADLINE\\='s keyterm index.
+This function replaces the first drawer whose :DRAWER-NAME property is
+the value of `org-keyterm-index-drawer-name' with a version listing the
+keyterms within SCOPE.
+
 HEADLINE is an org-element headline.
 
 SCOPE is an org-element parse tree for the region of the buffer that
 should be scanned for keyterms.  For instance, if SCOPE is the return
 value of `org-element-parse-buffer' then the entire buffer is scanned
-for keyterms."
-  (let ((new-contents (org-keyterm-index-generate-index scope)))
-    (or
-     ;; Replace the keyterm index drawer if one already exists
-     (org-element-map headline '(drawer)
-       (lambda (drawer)
-         (org-keyterm-index--replace-drawer-contents drawer new-contents))
-       nil 'first-match)) ; We assume that there is only one index drawer per headline
-    ;; If there is no keyterm index drawer, then insert one to the end of the
-    ;; headline
-    (goto-char (- (org-element-contents-end headline) (org-element-post-blank headline)))
-    (insert ":" (upcase org-keyterm-index-drawer-name) ":\n" new-contents "\n:END:\n"))
-  t)
+for keyterms.
+
+Return the org-element of the newly updated drawer.  If the drawer was
+not updated, return do not change the buffer contents and return nil.
+If there are multiple drawers whose :DRAWER-NAME property is the value
+of `org-keyterm-index-drawer-name', update only the first one.  If there
+are no keyterm index drawers in this headline, then insert one at the
+end of it."
+  (when-let* ((index-drawer
+               ;; Get only the first keyterm index drawer
+               (car (org-ml-match `(:first :any (:and drawer (:drawer-name ,org-keyterm-index-drawer-name)))
+                                  headline)))
+              (index-drawer-begin (org-ml-get-property :begin index-drawer))
+              (updated-drawer
+               (org-ml-set-property :post-blank (org-ml-get-property :post-blank index-drawer)
+                                    (org-keyterm-index-generate-index-drawer scope))))
+    (unless (string= (org-ml-to-trimmed-string updated-drawer) (org-ml-to-trimmed-string index-drawer))
+      (org-ml-update-element-at* index-drawer-begin
+        (org-ml-set-property :post-blank (org-ml-get-property :post-blank index-drawer) updated-drawer))
+      (message "Updated drawer at point %s" index-drawer-begin)
+      updated-drawer)))
+
+(defun org-keyterm-index--get-scope (headline)
+  "Get keyterm index scope of HEADLINE.
+HEADLINE is an org-element headline.  Return the parse tree
+corresponding to the value of the heading property whose name is the
+value of `org-keyterm-index-property-value-name'.
+
+The possible property values are:
+- \"buffer\": the entire buffer
+- \"t\": the entire buffer
+- \"subtree\": the subtree of HEADLINE and its subheadings
+
+If there is no such property, or if its value is erroneous, return nil."
+  (pcase (org-ml-headline-get-node-property org-keyterm-index-property-value-name headline)
+    ((or "buffer" "t") (org-ml-parse-this-buffer))
+    ("subtree" (org-ml-parse-subtree-at (org-ml-get-property :begin headline)))))
 
 ;;; Commands
-;; TODO 2025-05-08: Handle narrowed buffers
+;; TODO 2025-05-08: Handle narrowed buffers?
 (defun org-keyterm-index-update-buffer ()
-  "Insert or update an index under a heading marked with :index: t, using a drawer."
+  "Update every headline\\='s keyterm index in this buffer.
+Headlines which will be updated are those which have a valid value for
+the property designated by the value of
+`org-keyterm-index-property-value-name'.  See the docstring of
+`org-keyterm-index--get-scope' for the possible values for this
+property."
   (interactive)
-  (let* ((ast (org-element-parse-buffer))
-         (info
-          (org-element-ast-map ast '(headline)
-            (lambda (headline)
-              (let ((val (org-element-property
-                          (intern (concat ":" org-keyterm-index-property-value-name))
-                          ;; FIXME 2025-05-11: Do I need to 'force-undefer?
-                          headline nil 'force-undefer)))
-                (pcase val
-                  ((or "buffer" "t") (cons headline ast))
-                  ("subtree"
-                   (save-restriction
-                     (org-narrow-to-subtree headline)
-                     (cons headline (org-element-parse-buffer))))
-                  ("nil" (throw :org-element-skip t))
-                  ;; Disregard any other value
-                  (_ (throw :org-element-skip t))))))))
-    ;; REVIEW 2025-05-11: Can we do this with only the AST so we don't have to
-    ;; do iterate in reverse order?
-    ;; We insert or replace the drawers starting with the last matched headline
-    ;; and ending with the first matched headline.  The reason is because the
-    ;; points cached in the AST change if we insert/replace contents.  But these
-    ;; changes only affect points later in the buffer, so we start at the end so
-    ;; earlier points aren't effected.
-    (dolist (pair (reverse info))
-      (org-keyterm-index--update-headline-index (car pair) (cdr pair))))
-  t)
+  ;; FIXME 2025-05-12: Not sure why `org-ml-match-do*' does not work.  Created
+  ;; issue upstream: https://github.com/ndwarshuis/org-ml/issues/49
+  (let ((count 0))
+    (org-ml-match-do `(:any * headline)
+      (lambda (headline)
+        (when (org-keyterm-index-update-headline headline (org-keyterm-index--get-scope headline))
+          (setq count (1+ count))))
+      (org-ml-parse-this-buffer))
+    (if (plusp count)
+        (message "Updated %s headlines' keyterm index in the buffer!" count)
+      (message "Buffer's keyterm index drawers already up-to-date"))))
 
 ;;; Provide
 (provide 'org-keyterm-index)
