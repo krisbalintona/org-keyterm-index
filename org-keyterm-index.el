@@ -24,7 +24,7 @@
 
 ;;; Commentary:
 
-;; Like `org-make-toc' but to create book-like indices (for keyword-page pairs).
+;; Like `org-make-toc' but to create book-like indices (for keyterm-page pairs).
 
 ;;; Code:
 (require 'org-element)
@@ -33,24 +33,24 @@
 
 ;;;; Options
 (defgroup org-keyterm-index ()
-  "Create a keyword index in an `org-mode' buffer."
+  "Create a keyterm index in an `org-mode' buffer."
   :group 'org-mode
   :prefix "org-keyterm-index-")
 
-(defcustom org-keyterm-index-keyword-name "KEYWORD"
-  "Name of the org keyword used to store the index contents.
-For instance, a value of \"KEYWORD\" means that #+KEYWORD: will
-associate a keyword with pages.
+(defcustom org-keyterm-index-keyterm-name "KEYTERM"
+  "Name of the org keyterm used to store the index contents.
+For instance, a value of \"KEYTERM\" means that #+KEYTERM: will
+associate a keyterm with pages.
 
 Capitalization has no effect."
   :type 'string)
 
-(defcustom org-keyterm-index-drawer-name "KEYWORD_INDEX"
+(defcustom org-keyterm-index-drawer-name "KEYTERM_INDEX"
   "Name of the drawer used to store the index contents."
   :type 'string)
 
 ;;;; Internal
-(defconst org-keyterm-index-property-value-name "KEYWORD_INDEX"
+(defconst org-keyterm-index-property-value-name "KEYTERM_INDEX"
   "Name of the drawer used to store the index contents.")
 
 (defconst org-keyterm-index-drawer-start-regexp
@@ -67,24 +67,24 @@ Based on the drawer name supplied by `org-keyterm-index-drawer-name'.")
 ;; to mind.
 
 (defun org-keyterm-index-generate-index (parse-tree)
-  "Return the keyword index as a string.
-PARSE-TREE is the org-element parse tree scanned for keywords."
+  "Return the keyterm index as a string.
+PARSE-TREE is the org-element parse tree scanned for keyterms."
   (let* ((index-table (make-hash-table :test #'equal))
          lines)
     (org-element-map parse-tree '(keyword)
       (lambda (keyword-element)
         (when (string-equal-ignore-case (org-element-property :key keyword-element)
-                                        org-keyterm-index-keyword-name)
+                                        org-keyterm-index-keyterm-name)
           (let* ((components
                   (mapcar #'string-trim (string-split (org-element-property :value keyword-element) "::")))
-                 (keyword (car components))
+                 (keyterm (car components))
                  ;; TODO 2025-05-08: Handle case of no pages
                  (pages (cdr components)))
-            (puthash keyword (append pages (gethash keyword index-table)) index-table)))))
+            (puthash keyterm (append pages (gethash keyterm index-table)) index-table)))))
     (maphash
-     (lambda (keyword pages)
+     (lambda (keyterm pages)
        (push (format "- %s :: %s"
-                     keyword
+                     keyterm
                      (string-join (reverse pages) ", "))
              lines))
      index-table)
@@ -111,21 +111,21 @@ NEW-CONTENTS."
     t))
 
 (defun org-keyterm-index--update-headline-index (headline scope)
-  "Update HEADLINE\\='s keyword index.
+  "Update HEADLINE\\='s keyterm index.
 HEADLINE is an org-element headline.
 
 SCOPE is an org-element parse tree for the region of the buffer that
-should be scanned for keywords.  For instance, if SCOPE is the return
+should be scanned for keyterms.  For instance, if SCOPE is the return
 value of `org-element-parse-buffer' then the entire buffer is scanned
-for keywords."
+for keyterms."
   (let ((new-contents (org-keyterm-index-generate-index scope)))
     (or
-     ;; Replace the keyword index drawer if one already exists
+     ;; Replace the keyterm index drawer if one already exists
      (org-element-map headline '(drawer)
        (lambda (drawer)
          (org-keyterm-index--replace-drawer-contents drawer new-contents))
        nil 'first-match)) ; We assume that there is only one index drawer per headline
-    ;; If there is no keyword index drawer, then insert one to the end of the
+    ;; If there is no keyterm index drawer, then insert one to the end of the
     ;; headline
     (goto-char (- (org-element-contents-end headline) (org-element-post-blank headline)))
     (insert ":" (upcase org-keyterm-index-drawer-name) ":\n" new-contents "\n:END:\n"))
