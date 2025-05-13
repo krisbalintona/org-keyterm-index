@@ -2,6 +2,10 @@
 
 * Unreleased
 
+* 0.1.2 --- 2025-05-14
+
++ Fix: Resolve cases of erroring on headings when trying to update the heading without a keyterm index property set.
+
 * 0.1.1 --- 2025-05-14
 
 + Use a functional paradigm for internal functions that mutate the org AST. That is, only change the buffer after all changes have been decided and the initial parse tree has been modified to introduce those changes.

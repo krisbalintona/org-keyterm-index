@@ -5,7 +5,7 @@
 ;; Author: Kristoffer Balintona <krisbalintona@gmail.com>
 ;; URL: https://github.com/krisbalintona/org-keyterm-index
 ;; Keywords: text, convenience
-;; Version: 0.1.1
+;; Version: 0.1.2
 ;; Package-Requires: ((emacs "30.1") (org-ml "6.0.0"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -180,7 +180,10 @@ property."
   ;; https://github.com/ndwarshuis/org-ml?tab=readme-ov-file#node-copying for
   ;; more information on using impure versions of org-ml functions.
   (org-ml->> (org-ml-parse-this-buffer)
-    (org-ml-match-map* `(:any * headline) (org-keyterm-index--new-headline-node it))
+    ;; Only check headlines where with a valid property value (i.e.,
+    ;; `org-keyterm-index--get-scope' returns non-nil)
+    (org-ml-match-map* `(:any * (:and headline (:pred org-keyterm-index--get-scope)))
+      (org-keyterm-index--new-headline-node it))
     ;; TODO 2025-05-13: We use `org-ml-update-this-buffer*' to leverage the
     ;; Myers diff algorithm, but can we avoid having to diff the entire buffer?
     ;; This can become very expensive because the algorithm is quadratic in
