@@ -5,7 +5,7 @@
 ;; Author: Kristoffer Balintona <krisbalintona@gmail.com>
 ;; URL: https://github.com/krisbalintona/org-keyterm-index
 ;; Keywords: text, convenience
-;; Version: 0.1.3
+;; Version: 0.1.4
 ;; Package-Requires: ((emacs "30.1") (org-ml "6.0.0"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -159,9 +159,11 @@ property."
   ;; impurely for performance gains with no downside.  See
   ;; https://github.com/ndwarshuis/org-ml?tab=readme-ov-file#node-copying for
   ;; more information on using impure versions of org-ml functions.
-  (org-ml->> (org-ml-parse-this-headline)
-    (org-keyterm-index--new-headline-node)
-    (org-ml-update-this-headline*)))
+  (let ((headline-at-point (org-ml-parse-this-headline)))
+    (when (org-keyterm-index--get-scope headline-at-point)
+      (org-ml->> headline-at-point
+        (org-keyterm-index--new-headline-node)
+        (org-ml-update-this-headline*)))))
 
 ;; TODO 2025-05-08: Handle narrowed buffers?
 ;;;###autoload

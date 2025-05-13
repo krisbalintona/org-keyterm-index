@@ -2,6 +2,10 @@
 
 * Unreleased
 
+* 1.1.4 --- 2025-05-14
+
++ Fix errors when trying to update headings' keyterm indices that do not have a valid value for the ~org-keyterm-index-property-value-name~ property set.
+
 * 0.1.3 --- 2025-05-14
 
 + Fix: Resolve error when trying to update a heading without children.
