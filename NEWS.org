@@ -2,6 +2,8 @@
 
 * Unreleased
 
++ Bump org-ml dependency to v6.0.2.
+
 * 1.1.4 --- 2025-05-14
 
 + Fix errors when trying to update headings' keyterm indices that do not have a valid value for the ~org-keyterm-index-property-value-name~ property set.

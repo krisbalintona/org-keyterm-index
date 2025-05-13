@@ -6,7 +6,7 @@
 ;; URL: https://github.com/krisbalintona/org-keyterm-index
 ;; Keywords: text, convenience
 ;; Version: 0.1.4
-;; Package-Requires: ((emacs "30.1") (org-ml "6.0.0"))
+;; Package-Requires: ((emacs "30.1") (org-ml "6.0.2"))
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -62,16 +62,14 @@ If there are no keyterms to inside PARSE-TREE, return nil.
 PARSE-TREE is the org-element parse tree scanned for keyterms."
   (let ((index-table (make-hash-table :test #'equal))
         list-items)
-    ;; FIXME 2025-05-12: Not sure why `org-ml-match-do*' does not work.  Created
-    ;; issue upstream: https://github.com/ndwarshuis/org-ml/issues/49
-    (org-ml-match-do `(:any * (:and keyword (:key ,org-keyterm-index-keyword-name)))
-      ;; TODO 2025-05-13: Handle cases in which user strings are erroneous
-      (lambda (keyword-element)
-        (let* ((components (mapcar #'string-trim (string-split (org-ml-get-property :value keyword-element) "::")))
-               (keyterm (car components))
-               (pages (cdr components)))
-          (puthash keyterm (append pages (gethash keyterm index-table)) index-table)))
-      parse-tree)
+    (org-ml-match-do*
+     `(:any * (:and keyword (:key ,org-keyterm-index-keyword-name)))
+     ;; TODO 2025-05-13: Handle cases in which user strings are erroneous
+     (let* ((components (mapcar #'string-trim (string-split (org-ml-get-property :value it) "::")))
+            (keyterm (car components))
+            (pages (cdr components)))
+       (puthash keyterm (append pages (gethash keyterm index-table)) index-table))
+     parse-tree)
     (maphash
      (lambda (keyterm pages)
        (push (org-ml-build-item! :bullet '-
