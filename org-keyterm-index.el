@@ -144,6 +144,7 @@ If there is no such property, or if its value is erroneous, return nil."
 
 ;;; Commands
 ;; TODO 2025-05-08: Handle narrowed buffers?
+;;;###autoload
 (defun org-keyterm-index-update-headline-at-point ()
   "Update the headline at point\\='s keyterm index.
 The headline will only be changed if the it has a valid value for the
@@ -163,6 +164,7 @@ property."
     (org-ml-update-this-headline*)))
 
 ;; TODO 2025-05-08: Handle narrowed buffers?
+;;;###autoload
 (defun org-keyterm-index-update-buffer ()
   "Update every headline\\='s keyterm index in this buffer.
 Headlines which will be updated are those which have a valid value for
