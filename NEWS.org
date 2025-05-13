@@ -2,20 +2,16 @@
 
 * Unreleased
 
-** Changes
+* 0.1.1 --- 2025-05-14
 
 + Use a functional paradigm for internal functions that mutate the org AST. That is, only change the buffer after all changes have been decided and the initial parse tree has been modified to introduce those changes.
 + New command: ~org-keyterm-index-update-headline-at-point~
 + Autoload all commands.
++ If the property drawer is the only element under a heading, ensure that the =:post-blank= property is set in a newly inserted keyterm index drawer under that heading.
 
 * 0.1.0 --- 2025-05-13
 
-** Fixes
-
 + When the ~org-keyterm-index-property-value-name~ property is set in a headline, insert a new keyterm index drawer at the end of this headline.
-
-** Changes
-
 + Use [[https://github.com/ndwarshuis/org-ml][org-ml]] instead of using org-element.el alongside manual modifications of the buffer with ~insert~, ~replace-buffer-contents~, and the like.
 
 * 0.0.1 --- 2025-05-12

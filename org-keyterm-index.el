@@ -5,7 +5,7 @@
 ;; Author: Kristoffer Balintona <krisbalintona@gmail.com>
 ;; URL: https://github.com/krisbalintona/org-keyterm-index
 ;; Keywords: text, convenience
-;; Version: 0.1.0
+;; Version: 0.1.1
 ;; Package-Requires: ((emacs "30.1") (org-ml "6.0.0"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -121,10 +121,10 @@ this property, see the docstring of `org-keyterm-index--get-scope'."
           headline)
       ;; When there isn't already an existing keyterm index drawer, append an
       ;; updated one to headline
-      (let* ((children (org-ml-headline-get-contents nil headline))
-             (last-child-post-blank (org-ml-get-property :post-blank (car (last children))))
+      (let* ((section (org-ml-headline-get-section headline)) ; We use section to consider :post-blank of property drawer
+             (last-child-post-blank (org-ml-get-property :post-blank (car (last section))))
              (new-drawer (org-ml-set-property :post-blank last-child-post-blank generated-drawer)))
-        (org-ml-headline-set-contents nil (append children (list new-drawer)) headline)))))
+        (org-ml-headline-set-section (append section (list new-drawer)) headline)))))
 
 (defun org-keyterm-index--get-scope (headline)
   "Get keyterm index scope of HEADLINE.
