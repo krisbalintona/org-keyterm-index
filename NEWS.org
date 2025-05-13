@@ -2,6 +2,10 @@
 
 * Unreleased
 
+* 0.1.3 --- 2025-05-14
+
++ Fix: Resolve error when trying to update a heading without children.
+
 * 0.1.2 --- 2025-05-14
 
 + Fix: Resolve cases of erroring on headings when trying to update the heading without a keyterm index property set.
