@@ -124,7 +124,8 @@ end of it."
                                     (append (org-ml-headline-get-contents nil it)
                                             (list generated-drawer))
                                     it))
-    (message "Inserted drawer at the end of headline at point %s" (org-ml-get-property :begin headline))))
+    (message "Inserted drawer at the end of headline at point %s" (org-ml-get-property :begin headline))
+    updated-drawer))
 
 (defun org-keyterm-index--get-scope (headline)
   "Get keyterm index scope of HEADLINE.
