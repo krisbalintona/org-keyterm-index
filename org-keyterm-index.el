@@ -181,6 +181,12 @@ property."
   ;; more information on using impure versions of org-ml functions.
   (org-ml->> (org-ml-parse-this-buffer)
     (org-ml-match-map* `(:any * headline) (org-keyterm-index--new-headline-node it))
+    ;; TODO 2025-05-13: We use `org-ml-update-this-buffer*' to leverage the
+    ;; Myers diff algorithm, but can we avoid having to diff the entire buffer?
+    ;; This can become very expensive because the algorithm is quadratic in
+    ;; complexity.  Maybe we should use `org-ml-update-headline-at*' on every
+    ;; headline in the buffer from end to beginning (to prevent headlines
+    ;; updated later from having their boundaries become stale)?
     (org-ml-update-this-buffer*)))
 
 ;;; Provide
