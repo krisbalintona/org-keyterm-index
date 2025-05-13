@@ -5,6 +5,7 @@
 ** Changes
 
 + Use a functional paradigm for internal functions that mutate the org AST. That is, only change the buffer after all changes have been decided and the initial parse tree has been modified to introduce those changes.
++ New command: ~org-keyterm-index-update-headline-at-point~
 
 * 0.1.0 --- 2025-05-13
 

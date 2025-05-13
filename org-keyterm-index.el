@@ -144,6 +144,25 @@ If there is no such property, or if its value is erroneous, return nil."
 
 ;;; Commands
 ;; TODO 2025-05-08: Handle narrowed buffers?
+(defun org-keyterm-index-update-headline-at-point ()
+  "Update the headline at point\\='s keyterm index.
+The headline will only be changed if the it has a valid value for the
+property whose name is the value of
+`org-keyterm-index-property-value-name'.  See the docstring of
+`org-keyterm-index--get-scope' for the possible values for this
+property."
+  (interactive)
+  ;; We aren't binding the intermediate nodes during our process of modifying
+  ;; the org-element nodes, so we don't have to worry about side effects to
+  ;; variables these nodes are bound to.  Therefore, we can safely use org-ml
+  ;; impurely for performance gains with no downside.  See
+  ;; https://github.com/ndwarshuis/org-ml?tab=readme-ov-file#node-copying for
+  ;; more information on using impure versions of org-ml functions.
+  (org-ml->> (org-ml-parse-this-headline)
+    (org-keyterm-index--new-headline-node)
+    (org-ml-update-this-headline*)))
+
+;; TODO 2025-05-08: Handle narrowed buffers?
 (defun org-keyterm-index-update-buffer ()
   "Update every headline\\='s keyterm index in this buffer.
 Headlines which will be updated are those which have a valid value for
