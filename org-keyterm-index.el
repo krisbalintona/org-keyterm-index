@@ -5,7 +5,7 @@
 ;; Author: Kristoffer Balintona <krisbalintona@gmail.com>
 ;; URL: https://github.com/krisbalintona/org-keyterm-index
 ;; Keywords: text, convenience
-;; Version: 0.0.1
+;; Version: 0.1.0
 ;; Package-Requires: ((emacs "30.1") (org-ml "6.0.0"))
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -105,19 +105,26 @@ If there are multiple drawers whose :DRAWER-NAME property is the value
 of `org-keyterm-index-drawer-name', update only the first one.  If there
 are no keyterm index drawers in this headline, then insert one at the
 end of it."
-  (when-let* ((index-drawer
-               ;; Get only the first keyterm index drawer
-               (car (org-ml-match `(:first :any (:and drawer (:drawer-name ,org-keyterm-index-drawer-name)))
-                                  headline)))
-              (index-drawer-begin (org-ml-get-property :begin index-drawer))
-              (updated-drawer
-               (org-ml-set-property :post-blank (org-ml-get-property :post-blank index-drawer)
-                                    (org-keyterm-index-generate-index-drawer scope))))
-    (unless (string= (org-ml-to-trimmed-string updated-drawer) (org-ml-to-trimmed-string index-drawer))
-      (org-ml-update-element-at* index-drawer-begin
-        (org-ml-set-property :post-blank (org-ml-get-property :post-blank index-drawer) updated-drawer))
-      (message "Updated drawer at point %s" index-drawer-begin)
-      updated-drawer)))
+  (if-let ((generated-drawer (org-keyterm-index-generate-index-drawer scope))
+           (index-drawer
+            ;; Get only the first keyterm index drawer
+            (car (org-ml-match `(:first :any (:and drawer (:drawer-name ,org-keyterm-index-drawer-name)))
+                               headline))))
+      (let ((index-drawer-begin (org-ml-get-property :begin index-drawer))
+            (updated-drawer
+             (org-ml-set-property :post-blank (org-ml-get-property :post-blank index-drawer) generated-drawer)))
+        (unless (string= (org-ml-to-trimmed-string updated-drawer) (org-ml-to-trimmed-string index-drawer))
+          (org-ml-update-element-at* index-drawer-begin
+            (org-ml-set-property :post-blank (org-ml-get-property :post-blank index-drawer) updated-drawer))
+          (message "Updated drawer at point %s" index-drawer-begin)
+          updated-drawer))
+    ;; When there isn't already an existing keyterm index drawer, insert one
+    (org-ml-update-headline-at* (org-ml-get-property :begin headline)
+      (org-ml-headline-set-contents nil
+                                    (append (org-ml-headline-get-contents nil it)
+                                            (list generated-drawer))
+                                    it))
+    (message "Inserted drawer at the end of headline at point %s" (org-ml-get-property :begin headline))))
 
 (defun org-keyterm-index--get-scope (headline)
   "Get keyterm index scope of HEADLINE.

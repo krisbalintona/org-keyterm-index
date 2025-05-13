@@ -2,6 +2,12 @@
 
 * Unreleased
 
+* 0.1.0 --- 2025-05-13
+
+** Fixes
+
++ When the ~org-keyterm-index-property-value-name~ property is set in a headline, insert a new keyterm index drawer at the end of this headline.
+
 ** Changes
 
 + Use [[https://github.com/ndwarshuis/org-ml][org-ml]] instead of using org-element.el alongside manual modifications of the buffer with ~insert~, ~replace-buffer-contents~, and the like.
