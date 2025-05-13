@@ -82,50 +82,49 @@ PARSE-TREE is the org-element parse tree scanned for keyterms."
     (when list-items
       (org-ml-build-drawer org-keyterm-index-drawer-name (apply #'org-ml-build-plain-list list-items)))))
 
+;; TODO 2025-05-13: Should I locally bind `org-ml-memoize-match-patterns' for
+;; the pattern I use to detect keyword index drawers?
 ;; FIXME 2025-05-13: Figure out away to have the keyterms picked up ignore the
 ;; scope boundaries of other index headlines.  So, for example, if I have a
 ;; buffer-level scope headline, ignore the scope of a subtree-level scope of
 ;; another headline within that buffer.
-(defun org-keyterm-index-update-headline (headline scope)
-  "Update HEADLINE\\='s keyterm index.
-This function replaces the first drawer whose :DRAWER-NAME property is
-the value of `org-keyterm-index-drawer-name' with a version listing the
-keyterms within SCOPE.
+(defun org-keyterm-index--new-headline-node (headline &optional scope)
+  "Return HEADLINE with an updated keyterm index drawer.
+This function returns HEADLINE with the first keyterm index drawer (a
+drawer whose :DRAWER-NAME property is the value of
+`org-keyterm-index-drawer-name') replaced with an updated keyterm index
+drawer org-element.
+
+If there are multiple keyterm index drawers in HEADLINE, mutate only the
+first one.  If there are no keyterm index drawers in HEADLINE, then
+place one at the end of HEADLINE.
 
 HEADLINE is an org-element headline.
 
-SCOPE is an org-element parse tree for the region of the buffer that
-should be scanned for keyterms.  For instance, if SCOPE is the return
-value of `org-element-parse-buffer' then the entire buffer is scanned
-for keyterms.
-
-Return the org-element of the newly updated drawer.  If the drawer was
-not updated, return do not change the buffer contents and return nil.
-If there are multiple drawers whose :DRAWER-NAME property is the value
-of `org-keyterm-index-drawer-name', update only the first one.  If there
-are no keyterm index drawers in this headline, then insert one at the
-end of it."
-  (if-let ((generated-drawer (org-keyterm-index-generate-index-drawer scope))
-           (index-drawer
-            ;; Get only the first keyterm index drawer
-            (car (org-ml-match `(:first :any (:and drawer (:drawer-name ,org-keyterm-index-drawer-name)))
-                               headline))))
-      (let ((index-drawer-begin (org-ml-get-property :begin index-drawer))
-            (updated-drawer
-             (org-ml-set-property :post-blank (org-ml-get-property :post-blank index-drawer) generated-drawer)))
-        (unless (string= (org-ml-to-trimmed-string updated-drawer) (org-ml-to-trimmed-string index-drawer))
-          (org-ml-update-element-at* index-drawer-begin
-            (org-ml-set-property :post-blank (org-ml-get-property :post-blank index-drawer) updated-drawer))
-          (message "Updated drawer at point %s" index-drawer-begin)
-          updated-drawer))
-    ;; When there isn't already an existing keyterm index drawer, insert one
-    (org-ml-update-headline-at* (org-ml-get-property :begin headline)
-      (org-ml-headline-set-contents nil
-                                    (append (org-ml-headline-get-contents nil it)
-                                            (list generated-drawer))
-                                    it))
-    (message "Inserted drawer at the end of headline at point %s" (org-ml-get-property :begin headline))
-    updated-drawer))
+The optional parameter SCOPE is an org-element parse tree for the region
+of the buffer that should be scanned for keyterms.  For instance, if
+SCOPE is the return value of `org-element-parse-buffer' then the entire
+buffer is scanned for keyterms.  If SCOPE is nil, it will be determined
+by the value of the headline property whose name is the value of
+`org-keyterm-index-property-value-name'.  For a list of valid values for
+this property, see the docstring of `org-keyterm-index--get-scope'."
+  (let* ((generated-drawer
+          (org-keyterm-index-generate-index-drawer (or scope (org-keyterm-index--get-scope headline))))
+         ;; Query for only the first keyterm index drawer
+         (index-drawer-query `(:first :any (:and drawer (:drawer-name ,org-keyterm-index-drawer-name)))))
+    ;; REVIEW 2025-05-13: Is there a more efficient way to do this?  One that
+    ;; doesn't call `org-ml-match' then `org-ml-match-map*'?
+    (if (org-ml-match index-drawer-query headline)
+        ;; Replace index-drawer (the first keyterm index drawer) in headline
+        (org-ml-match-map* index-drawer-query
+          (org-ml-set-property :post-blank (org-ml-get-property :post-blank it) generated-drawer)
+          headline)
+      ;; When there isn't already an existing keyterm index drawer, append an
+      ;; updated one to headline
+      (let* ((children (org-ml-headline-get-contents nil headline))
+             (last-child-post-blank (org-ml-get-property :post-blank (car (last children))))
+             (new-drawer (org-ml-set-property :post-blank last-child-post-blank generated-drawer)))
+        (org-ml-headline-set-contents nil (append children (list new-drawer)) headline)))))
 
 (defun org-keyterm-index--get-scope (headline)
   "Get keyterm index scope of HEADLINE.
@@ -153,17 +152,15 @@ the property designated by the value of
 `org-keyterm-index--get-scope' for the possible values for this
 property."
   (interactive)
-  ;; FIXME 2025-05-12: Not sure why `org-ml-match-do*' does not work.  Created
-  ;; issue upstream: https://github.com/ndwarshuis/org-ml/issues/49
-  (let ((count 0))
-    (org-ml-match-do `(:any * headline)
-      (lambda (headline)
-        (when (org-keyterm-index-update-headline headline (org-keyterm-index--get-scope headline))
-          (setq count (1+ count))))
-      (org-ml-parse-this-buffer))
-    (if (plusp count)
-        (message "Updated %s headlines' keyterm index in the buffer!" count)
-      (message "Buffer's keyterm index drawers already up-to-date"))))
+  ;; We aren't binding the intermediate nodes during our process of modifying
+  ;; the org-element nodes, so we don't have to worry about side effects to
+  ;; variables these nodes are bound to.  Therefore, we can safely use org-ml
+  ;; impurely for performance gains with no downside.  See
+  ;; https://github.com/ndwarshuis/org-ml?tab=readme-ov-file#node-copying for
+  ;; more information on using impure versions of org-ml functions.
+  (org-ml->> (org-ml-parse-this-buffer)
+    (org-ml-match-map* `(:any * headline) (org-keyterm-index--new-headline-node it))
+    (org-ml-update-this-buffer*)))
 
 ;;; Provide
 (provide 'org-keyterm-index)
