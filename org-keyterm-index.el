@@ -53,7 +53,6 @@ Capitalization has no effect."
   "Name of the drawer used to store the index contents.")
 
 ;;; Functions
-
 ;; TODO 2025-05-08: Allow several formatting options? Plain list and table come
 ;; to mind.
 (defun org-keyterm-index-generate-index-drawer (parse-tree)
@@ -83,6 +82,10 @@ PARSE-TREE is the org-element parse tree scanned for keyterms."
     (when list-items
       (org-ml-build-drawer org-keyterm-index-drawer-name (apply #'org-ml-build-plain-list list-items)))))
 
+;; FIXME 2025-05-13: Figure out away to have the keyterms picked up ignore the
+;; scope boundaries of other index headlines.  So, for example, if I have a
+;; buffer-level scope headline, ignore the scope of a subtree-level scope of
+;; another headline within that buffer.
 (defun org-keyterm-index-update-headline (headline scope)
   "Update HEADLINE\\='s keyterm index.
 This function replaces the first drawer whose :DRAWER-NAME property is
