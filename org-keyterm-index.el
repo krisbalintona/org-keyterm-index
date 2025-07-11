@@ -131,15 +131,16 @@ this property, see the docstring of `org-keyterm-index--get-scope'."
           (org-keyterm-index-generate-index-drawer index-scope index-sorting-type))
          ;; Query for only the first keyterm index drawer
          (index-drawer-query `(:first :any (:and drawer (:drawer-name ,org-keyterm-index-drawer-name)))))
-    ;; REVIEW 2025-05-13: Is there a more efficient way to do this?  One that
-    ;; doesn't call `org-ml-match' then `org-ml-match-map*'?
+    ;; REVIEW 2025-05-13: Is there a more efficient way to do this?
+    ;; One that doesn't call `org-ml-match' then `org-ml-match-map*'?
     (if (org-ml-match index-drawer-query headline)
-        ;; Replace index-drawer (the first keyterm index drawer) in headline
+        ;; Replace index-drawer (the first keyterm index drawer) in
+        ;; headline
         (org-ml-match-map* index-drawer-query
           (org-ml-set-property :post-blank (org-ml-get-property :post-blank it) generated-drawer)
           headline)
-      ;; When there isn't already an existing keyterm index drawer, append an
-      ;; updated one to headline
+      ;; When there isn't already an existing keyterm index drawer,
+      ;; append an updated one to headline
       (let* ((section (org-ml-headline-get-section headline)) ; We use section to consider :post-blank of property drawer
              (last-child-post-blank (org-ml-get-property :post-blank (car (last section))))
              (new-drawer (org-ml-set-property :post-blank (or last-child-post-blank 0) generated-drawer)))
