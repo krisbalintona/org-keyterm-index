@@ -1,9 +1,0 @@
-(unless (package-installed-p 'org-keyterm-index)
-  (package-vc-install '(org-keyterm-index :url "https://github.com/krisbalintona/citar-org-node.git"
-                                       :rev :newest)))
-
-;; Or with use-package:
-(use-package citar-org-node
-  :vc ( :url "https://github.com/krisbalintona/citar-org-node.git"
-        :rev :newest))
-

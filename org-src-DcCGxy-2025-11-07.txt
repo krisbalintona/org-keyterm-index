@@ -1,3 +1,0 @@
-(add-hook 'org-mode-hook
- 
- (add-hook 'before-save-hook 'org-keyterm-index-update-buffer nil t))
