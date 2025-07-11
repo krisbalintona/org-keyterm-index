@@ -202,7 +202,6 @@ this property, see the docstring of `org-keyterm-index--get-scope'."
          headline)))))
 
 ;;; Commands
-;; TODO 2025-05-08: Handle narrowed buffers?
 ;;;###autoload
 (defun org-keyterm-index-update-headline-at-point ()
   "Update the headline at point\\='s keyterm index.
@@ -212,17 +211,17 @@ property whose name is the value of
 `org-keyterm-index--get-scope' for the possible values for this
 property."
   (interactive)
-  ;; We must pass then update the subtree instead of just the heading
-  ;; since updating just the heading will effectively erase any
-  ;; pre-existing subheadings
-  (if-let* ((subtree-at-point (org-ml-parse-this-subtree)))
-      (when (org-keyterm-index--get-scope subtree-at-point)
-        (org-ml->> subtree-at-point
-          (org-keyterm-index--updated-headline)
-          (org-ml-update-this-subtree*)))
-    (message "No subtree at point")))
+  (org-with-wide-buffer
+   ;; We must pass then update the subtree instead of just the heading
+   ;; since updating just the heading will effectively erase any
+   ;; pre-existing subheadings
+   (if-let* ((subtree-at-point (org-ml-parse-this-subtree)))
+       (when (org-keyterm-index--get-scope subtree-at-point)
+         (org-ml->> subtree-at-point
+           (org-keyterm-index--updated-headline)
+           (org-ml-update-this-subtree*)))
+     (message "No subtree at point"))))
 
-;; TODO 2025-05-08: Handle narrowed buffers?
 ;;;###autoload
 (defun org-keyterm-index-update-buffer ()
   "Update every headline\\='s keyterm index in this buffer.
@@ -232,19 +231,20 @@ the property designated by the value of
 `org-keyterm-index--get-scope' for the possible values for this
 property."
   (interactive)
-  (org-ml->> (org-ml-parse-this-buffer)
-    ;; Only check headlines where with a valid property value (i.e.,
-    ;; `org-keyterm-index--get-scope' returns non-nil)
-    (org-ml-match-map* `(:any * (:and headline (:pred org-keyterm-index--get-scope)))
-      (org-keyterm-index--updated-headline it))
-    ;; TODO 2025-05-13: We use `org-ml-update-this-buffer*' to
-    ;; leverage the Myers diff algorithm, but can we avoid having to
-    ;; diff the entire buffer?  This can become very expensive because
-    ;; the algorithm is quadratic in complexity.  Maybe we should use
-    ;; `org-ml-update-headline-at*' on every headline in the buffer
-    ;; from end to beginning (to prevent headlines updated later from
-    ;; having their boundaries become stale)?
-    (org-ml-update-this-buffer*)))
+  (org-with-wide-buffer
+   (org-ml->> (org-ml-parse-this-buffer)
+     ;; Only check headlines where with a valid property value (i.e.,
+     ;; `org-keyterm-index--get-scope' returns non-nil)
+     (org-ml-match-map* `(:any * (:and headline (:pred org-keyterm-index--get-scope)))
+       (org-keyterm-index--updated-headline it))
+     ;; TODO 2025-05-13: We use `org-ml-update-this-buffer*' to
+     ;; leverage the Myers diff algorithm, but can we avoid having to
+     ;; diff the entire buffer?  This can become very expensive
+     ;; because the algorithm is quadratic in complexity.  Maybe we
+     ;; should use `org-ml-update-headline-at*' on every headline in
+     ;; the buffer from end to beginning (to prevent headlines updated
+     ;; later from having their boundaries become stale)?
+     (org-ml-update-this-buffer*))))
 
 ;;; Provide
 (provide 'org-keyterm-index)
