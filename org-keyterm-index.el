@@ -72,8 +72,7 @@ PARSE-TREE is the org-element parse tree scanned for keyterms."
      parse-tree)
     (maphash
      (lambda (keyterm pages)
-       (push (org-ml-build-item! :bullet '-
-                                 :tag keyterm
+       (push (org-ml-build-item! :tag keyterm
                                  :paragraph (string-join (reverse pages) ", "))
              list-items))
      index-table)
