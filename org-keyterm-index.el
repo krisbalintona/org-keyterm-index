@@ -215,11 +215,12 @@ property."
   ;; We must pass then update the subtree instead of just the heading
   ;; since updating just the heading will effectively erase any
   ;; pre-existing subheadings
-  (let ((subtree-at-point (org-ml-parse-this-subtree)))
-    (when (org-keyterm-index--get-scope subtree-at-point)
-      (org-ml->> subtree-at-point
-        (org-keyterm-index--updated-headline)
-        (org-ml-update-this-subtree*)))))
+  (if-let* ((subtree-at-point (org-ml-parse-this-subtree)))
+      (when (org-keyterm-index--get-scope subtree-at-point)
+        (org-ml->> subtree-at-point
+          (org-keyterm-index--updated-headline)
+          (org-ml-update-this-subtree*)))
+    (message "No subtree at point")))
 
 ;; TODO 2025-05-08: Handle narrowed buffers?
 ;;;###autoload
