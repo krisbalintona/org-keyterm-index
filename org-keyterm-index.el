@@ -187,9 +187,10 @@ this property, see the docstring of `org-keyterm-index--get-scope'."
       ;; When there isn't already an existing keyterm index drawer,
       ;; add an updated one to the end of the content of HEADLINE
       (let* ((supercontents (org-ml-headline-get-supercontents nil headline))
-             (last-child (car (last (org-ml-headline-get-contents nil headline))))
-             (last-child-post-blank (or (org-ml-get-property :post-blank last-child) 0))
-             (final-drawer (org-ml-set-property :post-blank last-child-post-blank generated-drawer)))
+             (post-blank (or (org-ml-get-property :post-blank (car (last (org-ml-headline-get-contents nil headline))))
+                             (plist-get supercontents :blank)
+                             0))
+             (final-drawer (org-ml-set-property :post-blank post-blank generated-drawer)))
         ;; We use supercontents because its :contents is the content
         ;; of the headline excluding subheadings, if HEADLINE has any
         ;; (i.e., if HEADLINE is a subtree)
