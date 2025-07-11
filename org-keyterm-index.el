@@ -55,27 +55,47 @@ Capitalization has no effect."
 ;;; Functions
 ;; TODO 2025-05-08: Allow several formatting options? Plain list and table come
 ;; to mind.
-(defun org-keyterm-index-generate-index-drawer (parse-tree)
+(defun org-keyterm-index-generate-index-drawer (parse-tree sorting-type)
   "Return an org-element drawer for keyterms in PARSE-TREE.
 If there are no keyterms to inside PARSE-TREE, return nil.
 
-PARSE-TREE is the org-element parse tree scanned for keyterms."
+PARSE-TREE is the org-element parse tree scanned for keyterms.
+
+SORTING-TYPE is provided, must be a symbol indicating the kind of
+sorting to do on the generated index drawer's org list.  There are two
+available sorting types:
+- alphabetical: sort list items alphabetically
+- chronological: sort list items chronologically, as they appear in the
+  buffer"
   (let ((index-table (make-hash-table :test #'equal))
         list-items)
+    ;; Collect keyterm-pages pairs
     (org-ml-match-do*
      `(:any * (:and keyword (:key ,org-keyterm-index-keyword-name)))
      ;; TODO 2025-05-13: Handle cases in which user strings are erroneous
      (let* ((components (mapcar #'string-trim (string-split (org-ml-get-property :value it) "::")))
             (keyterm (car components))
             (pages (cdr components)))
-       (puthash keyterm (append pages (gethash keyterm index-table)) index-table))
+       (puthash keyterm (append (gethash keyterm index-table) pages) index-table))
      parse-tree)
+    ;; Build org bullet point list items
     (maphash
      (lambda (keyterm pages)
-       (push (org-ml-build-item! :tag keyterm
-                                 :paragraph (string-join (reverse pages) ", "))
+       (push (org-ml-build-item! :tag keyterm :paragraph (string-join pages ", "))
              list-items))
      index-table)
+    ;; Sort org bullet point list items
+    (setq list-items
+          (pcase sorting-type
+            ;; ('alphabetical (sort list-items #'string<))
+            ('alphabetical (sort list-items
+                                 ;; FIXME 2025-07-11: Is there a way
+                                 ;; to sort without converting the org
+                                 ;; element node into strings?
+                                 :key (lambda (node) (org-ml-to-string node))
+                                 :lessp #'string<))
+            ('chronological (nreverse list-items))))
+    ;; Build and return final drawer
     (when list-items
       (org-ml-build-drawer org-keyterm-index-drawer-name (apply #'org-ml-build-plain-list list-items)))))
 
@@ -105,8 +125,10 @@ buffer is scanned for keyterms.  If SCOPE is nil, it will be determined
 by the value of the headline property whose name is the value of
 `org-keyterm-index-property-value-name'.  For a list of valid values for
 this property, see the docstring of `org-keyterm-index--get-scope'."
-  (let* ((generated-drawer
-          (org-keyterm-index-generate-index-drawer (or scope (org-keyterm-index--get-scope headline))))
+  (let* ((index-scope (or scope (org-keyterm-index--get-scope headline)))
+         (index-sorting-type (org-keyterm-index--get-sorting-type headline))
+         (generated-drawer
+          (org-keyterm-index-generate-index-drawer index-scope index-sorting-type))
          ;; Query for only the first keyterm index drawer
          (index-drawer-query `(:first :any (:and drawer (:drawer-name ,org-keyterm-index-drawer-name)))))
     ;; REVIEW 2025-05-13: Is there a more efficient way to do this?  One that
@@ -135,9 +157,30 @@ The possible property values are:
 - \"subtree\": the subtree of HEADLINE and its subheadings
 
 If there is no such property, or if its value is erroneous, return nil."
-  (pcase (org-ml-headline-get-node-property org-keyterm-index-property-value-name headline)
-    ((or "buffer" "t") (org-ml-parse-this-buffer))
-    ("subtree" (org-ml-parse-subtree-at (org-ml-get-property :begin headline)))))
+  (let ((value (org-ml-headline-get-node-property org-keyterm-index-property-value-name headline)))
+    (pcase (car (string-split value nil t))
+      ((or "buffer" "t") (org-ml-parse-this-buffer))
+      ("subtree" (org-ml-parse-subtree-at (org-ml-get-property :begin headline))))))
+
+(defun org-keyterm-index--get-sorting-type (headline)
+  "Get keyterm index sorting type of HEADLINE.
+HEADLINE is an org-element headline.  For HEADLINE\\='s
+properties,return the sorting type, as a symbol, denoted by the value of
+the property whose name is the value of
+`org-keyterm-index-property-value-name'(see
+`org-keyterm-index-generate-index-drawer').
+
+The possible sorting types are:
+- \"chronological\": the entire buffer
+- \"alphabetical\": the entire buffer
+If there is no sorting type specified, default to the \"chronological\"
+sorting type.
+
+If there is no such property, or if its value is erroneous, return nil."
+  (let ((value (org-ml-headline-get-node-property org-keyterm-index-property-value-name headline)))
+    (pcase (nth 1 (string-split value nil t))
+      ("alphabetical" 'alphabetical)
+      ((or "chronological" "nil" (pred not)) 'chronological))))
 
 ;;; Commands
 ;; TODO 2025-05-08: Handle narrowed buffers?
