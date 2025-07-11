@@ -99,24 +99,68 @@ available sorting types:
     (when list-items
       (org-ml-build-drawer org-keyterm-index-drawer-name (apply #'org-ml-build-plain-list list-items)))))
 
+(defun org-keyterm-index--get-settings (headline)
+  "Get a list of the keyterm index settings of HEADLINE.
+HEADLINE is an org-element headline.  Given HEADLINE, get the value of
+the property whose name is the value of
+`org-keyterm-index-property-value-name'.  If there is no such property,
+return nil.  If such a property exists, take the value of that property
+and split it by spaces, returning the resulting list."
+  (when-let* ((value (org-ml-headline-get-node-property org-keyterm-index-property-value-name headline)))
+    (string-split value nil t)))
+
+(defun org-keyterm-index--get-scope (headline)
+  "Get keyterm index scope of HEADLINE.
+HEADLINE is an org-element headline.  Return the parse tree
+corresponding to the scope indicated by HEADLINE\\='s keyterm index
+settings.
+
+The possible scope settings are:
+- \"buffer\": the entire buffer
+- \"t\": the entire buffer
+- \"subtree\": the subtree of HEADLINE and its subheadings
+
+If there is no such property, or if its value is erroneous, return nil."
+  (when-let* ((settings (org-keyterm-index--get-settings headline)))
+    (pcase (car settings)
+      ((or "buffer" "t") (org-ml-parse-this-buffer))
+      ("subtree" (org-ml-parse-subtree-at (org-ml-get-property :begin headline))))))
+
+(defun org-keyterm-index--get-sorting-type (headline)
+  "Get keyterm index sorting type of HEADLINE.
+HEADLINE is an org-element headline.  For HEADLINE, return the sorting
+type, as a symbol.
+
+The possible sorting types are:
+- \\='chronological: the entire buffer
+- \\='alphabetical: the entire buffer
+If there is no sorting type specified, default to the \\='chronological
+sorting type.
+
+If there is no such property, or if its value is erroneous, return nil."
+  (when-let* ((settings (org-keyterm-index--get-settings headline)))
+    (pcase (nth 1 settings)
+      ("alphabetical" 'alphabetical)
+      ((or "chronological" "nil" (pred not)) 'chronological))))
+
 ;; TODO 2025-05-13: Should I locally bind `org-ml-memoize-match-patterns' for
 ;; the pattern I use to detect keyword index drawers?
 ;; FIXME 2025-05-13: Figure out away to have the keyterms picked up ignore the
 ;; scope boundaries of other index headlines.  So, for example, if I have a
 ;; buffer-level scope headline, ignore the scope of a subtree-level scope of
 ;; another headline within that buffer.
-(defun org-keyterm-index--new-headline-node (headline &optional scope)
+(defun org-keyterm-index--updated-headline (headline &optional scope)
   "Return HEADLINE with an updated keyterm index drawer.
-This function returns HEADLINE with the first keyterm index drawer (a
-drawer whose :DRAWER-NAME property is the value of
-`org-keyterm-index-drawer-name') replaced with an updated keyterm index
-drawer org-element.
-
-If there are multiple keyterm index drawers in HEADLINE, mutate only the
-first one.  If there are no keyterm index drawers in HEADLINE, then
-place one at the end of HEADLINE.
-
 HEADLINE is an org-element headline.
+
+A keyterm index drawer is an org drawer drawer whose :DRAWER-NAME
+property is the value of `org-keyterm-index-drawer-name'.
+
+This function returns HEADLINE with the first keyterm index drawer
+replaced with an updated keyterm index drawer org-element.  If there are
+no keyterm index drawers in HEADLINE, then return HEADLINE with a new
+keyterm index drawer at the end of its contents (i.e., before any
+existing subheadings).
 
 The optional parameter SCOPE is an org-element parse tree for the region
 of the buffer that should be scanned for keyterms.  For instance, if
@@ -140,48 +184,21 @@ this property, see the docstring of `org-keyterm-index--get-scope'."
           (org-ml-set-property :post-blank (org-ml-get-property :post-blank it) generated-drawer)
           headline)
       ;; When there isn't already an existing keyterm index drawer,
-      ;; append an updated one to headline
-      (let* ((section (org-ml-headline-get-section headline)) ; We use section to consider :post-blank of property drawer
-             (last-child-post-blank (org-ml-get-property :post-blank (car (last section))))
-             (new-drawer (org-ml-set-property :post-blank (or last-child-post-blank 0) generated-drawer)))
-        (org-ml-headline-set-section (append section (list new-drawer)) headline)))))
-
-(defun org-keyterm-index--get-scope (headline)
-  "Get keyterm index scope of HEADLINE.
-HEADLINE is an org-element headline.  Return the parse tree
-corresponding to the value of the heading property whose name is the
-value of `org-keyterm-index-property-value-name'.
-
-The possible property values are:
-- \"buffer\": the entire buffer
-- \"t\": the entire buffer
-- \"subtree\": the subtree of HEADLINE and its subheadings
-
-If there is no such property, or if its value is erroneous, return nil."
-  (let ((value (org-ml-headline-get-node-property org-keyterm-index-property-value-name headline)))
-    (pcase (car (string-split value nil t))
-      ((or "buffer" "t") (org-ml-parse-this-buffer))
-      ("subtree" (org-ml-parse-subtree-at (org-ml-get-property :begin headline))))))
-
-(defun org-keyterm-index--get-sorting-type (headline)
-  "Get keyterm index sorting type of HEADLINE.
-HEADLINE is an org-element headline.  For HEADLINE\\='s
-properties,return the sorting type, as a symbol, denoted by the value of
-the property whose name is the value of
-`org-keyterm-index-property-value-name'(see
-`org-keyterm-index-generate-index-drawer').
-
-The possible sorting types are:
-- \"chronological\": the entire buffer
-- \"alphabetical\": the entire buffer
-If there is no sorting type specified, default to the \"chronological\"
-sorting type.
-
-If there is no such property, or if its value is erroneous, return nil."
-  (let ((value (org-ml-headline-get-node-property org-keyterm-index-property-value-name headline)))
-    (pcase (nth 1 (string-split value nil t))
-      ("alphabetical" 'alphabetical)
-      ((or "chronological" "nil" (pred not)) 'chronological))))
+      ;; add an updated one to the end of the content of HEADLINE
+      (let* ((supercontents (org-ml-headline-get-supercontents nil headline))
+             (last-child (car (last (org-ml-headline-get-contents nil headline))))
+             (last-child-post-blank (or (org-ml-get-property :post-blank last-child) 0))
+             (final-drawer (org-ml-set-property :post-blank last-child-post-blank generated-drawer)))
+        ;; We use supercontents because its :contents is the content
+        ;; of the headline excluding subheadings, if HEADLINE has any
+        ;; (i.e., if HEADLINE is a subtree)
+        (org-ml-headline-set-supercontents
+         nil
+         (org-ml-supercontents-set-contents
+          (append (org-ml-supercontents-get-contents supercontents)
+                  (list final-drawer))
+          supercontents)
+         headline)))))
 
 ;;; Commands
 ;; TODO 2025-05-08: Handle narrowed buffers?
@@ -194,17 +211,14 @@ property whose name is the value of
 `org-keyterm-index--get-scope' for the possible values for this
 property."
   (interactive)
-  ;; We aren't binding the intermediate nodes during our process of modifying
-  ;; the org-element nodes, so we don't have to worry about side effects to
-  ;; variables these nodes are bound to.  Therefore, we can safely use org-ml
-  ;; impurely for performance gains with no downside.  See
-  ;; https://github.com/ndwarshuis/org-ml?tab=readme-ov-file#node-copying for
-  ;; more information on using impure versions of org-ml functions.
-  (let ((headline-at-point (org-ml-parse-this-headline)))
-    (when (org-keyterm-index--get-scope headline-at-point)
-      (org-ml->> headline-at-point
-        (org-keyterm-index--new-headline-node)
-        (org-ml-update-this-headline*)))))
+  ;; We must pass then update the subtree instead of just the heading
+  ;; since updating just the heading will effectively erase any
+  ;; pre-existing subheadings
+  (let ((subtree-at-point (org-ml-parse-this-subtree)))
+    (when (org-keyterm-index--get-scope subtree-at-point)
+      (org-ml->> subtree-at-point
+        (org-keyterm-index--updated-headline)
+        (org-ml-update-this-subtree*)))))
 
 ;; TODO 2025-05-08: Handle narrowed buffers?
 ;;;###autoload
@@ -216,23 +230,18 @@ the property designated by the value of
 `org-keyterm-index--get-scope' for the possible values for this
 property."
   (interactive)
-  ;; We aren't binding the intermediate nodes during our process of modifying
-  ;; the org-element nodes, so we don't have to worry about side effects to
-  ;; variables these nodes are bound to.  Therefore, we can safely use org-ml
-  ;; impurely for performance gains with no downside.  See
-  ;; https://github.com/ndwarshuis/org-ml?tab=readme-ov-file#node-copying for
-  ;; more information on using impure versions of org-ml functions.
   (org-ml->> (org-ml-parse-this-buffer)
     ;; Only check headlines where with a valid property value (i.e.,
     ;; `org-keyterm-index--get-scope' returns non-nil)
     (org-ml-match-map* `(:any * (:and headline (:pred org-keyterm-index--get-scope)))
-      (org-keyterm-index--new-headline-node it))
-    ;; TODO 2025-05-13: We use `org-ml-update-this-buffer*' to leverage the
-    ;; Myers diff algorithm, but can we avoid having to diff the entire buffer?
-    ;; This can become very expensive because the algorithm is quadratic in
-    ;; complexity.  Maybe we should use `org-ml-update-headline-at*' on every
-    ;; headline in the buffer from end to beginning (to prevent headlines
-    ;; updated later from having their boundaries become stale)?
+      (org-keyterm-index--updated-headline it))
+    ;; TODO 2025-05-13: We use `org-ml-update-this-buffer*' to
+    ;; leverage the Myers diff algorithm, but can we avoid having to
+    ;; diff the entire buffer?  This can become very expensive because
+    ;; the algorithm is quadratic in complexity.  Maybe we should use
+    ;; `org-ml-update-headline-at*' on every headline in the buffer
+    ;; from end to beginning (to prevent headlines updated later from
+    ;; having their boundaries become stale)?
     (org-ml-update-this-buffer*)))
 
 ;;; Provide
