@@ -1,0 +1,127 @@
+#+title: org-keyterm-index
+
+Org-keyterm-index are for users who take notes on texts (articles, books, papers) with org-mode and seek a way to create indexes of those notes. By "index," we mean ones you might see at the end of certain books: a listing of important words or phrases ("keyterms") and the pages/locations associated with each keyterm.
+
+See [[#concepts-and-terms][Concepts and terms]] for more details on what the indexes created by org-keyterm-index looks like.
+
+For users familiar with  [[https://github.com/alphapapa/org-make-toc][org-make-toc]], you can think of org-keyterm-index as similar to org-make-toc but for keyterm-pages pairs instead of a table of contents.
+
+* Table of contents
+:PROPERTIES:
+:TOC:      :include all :force (nothing) :ignore (this) :local (nothing)
+:END:
+
+:CONTENTS:
+- [[#installation][Installation]]
+- [[#concepts-and-keyterm-syntax][Concepts and keyterm syntax]]
+  - [[#example][Example]]
+- [[#usage][Usage]]
+:END:
+
+* Installation
+:PROPERTIES:
+:CUSTOM_ID: installation
+:END:
+
+Org-keyterm-index is not available in a package archive yet. For now, users can install the package manually, by cloning this repository and adding the local repository to Emacs's load-path, or with ~package-vc-install~ in Emacs 29 or above:
+#+begin_src emacs-lisp
+  (unless (package-installed-p 'org-keyterm-index)
+    (package-vc-install '(org-keyterm-index :url "https://github.com/krisbalintona/org-keyterm-index.git"
+                                            :rev :newest)))
+
+  ;; Or with use-package:
+  (use-package citar-org-node
+    :vc ( :url "https://github.com/krisbalintona/org-keyterm-index.git"
+          :rev :newest))
+#+end_src
+
+* Concepts and keyterm syntax
+:PROPERTIES:
+:CUSTOM_ID: concepts-and-keyterm-syntax
+:END:
+
+Org-keyterm-index lets users designate org headings to be "keyterm indexes." A keyterm index contains a "keyterm index drawer": an org drawer whose content is an org list whose items represent "keyterm-pages pairs." Keyterm-pages pairs are a pairing of a "keyterm" --- e.g., a vocabulary term --- and pages associated with that keyterm.
+
+A keyterm-pages pair is designated by an org "KEYTERM" keyword following the following format:
+#+begin_src org
+  ,#+keyterm: This is a keyterm :: 1, 50
+#+end_src
+This designates a keyterm-pages pair where the keyterm is "This is a keyterm" and the pages are "1" and "50." Lines likes the one above may appear anywhere in the file, and as many of these lines may appear in the file.
+
+To create a keyterm index, set the "KEYTERM_INDEX" property in any headline. The KEYTERM_INDEX property denotes the settings for creating the keyterm index drawer. See [[#usage][Usage]] for the possible values of this property. There can be multiple keyterm indexes in a buffer. Then call ~org-keyterm-index-update-headline-at-point~ inside the heading or ~org-keyterm-index-update-buffer~. 
+
+** Example
+:PROPERTIES:
+:CUSTOM_ID: example
+:END:
+
+Below is an example of org-keyterm-index in action. The KEYTERM_INDEX drawer shown is the result of calling ~org-keyterm-index-update-buffer~.
+#+begin_src org
+  This is some text.
+
+  ,#+keyterm: foo :: 1
+
+  ,* Heading 1
+
+  ,#+keyterm: bar :: 1
+
+  ,* Keyterm index
+  :PROPERTIES:
+  :KEYTERM_INDEX: buffer alphabetical
+  :END:
+
+  :KEYTERM_INDEX:
+  - bar :: 1
+  - baz :: 1
+  - foo :: 1
+  :END:
+
+  ,* Heading 2
+
+  ,#+keyterm: baz :: 1
+#+end_src
+
+* Usage
+:PROPERTIES:
+:CUSTOM_ID: usage
+:END:
+
+A keyterm index is created in any headline with a valid value of the "KEYTERM_INDEX" property. The value of this property denotes the settings for creating the keyterm index drawer. There are two settings users may specify. Only the first is required; the second is optional:
++ The scope to check for keyterm-pages pairs. Possible values:
+  - "buffer" :: Check the entire buffer.
+  - "subtree" :: Check the subtree of the headline's parent.
++ The sorting of the keyterm-pages pair items. Possible values:
+  - "chronological" :: List keyterm-pages pairs in the order they appear in the buffer. Default if omitted. 
+  - "alphabetical" :: Sort keyterm-pages pairs alphabetically.
+For clarity, below are a few examples of the KEYTERM_INDEX headline property:
+#+begin_src org
+  :KEYTERM_INDEX: buffer 
+#+end_src
+#+begin_src org
+  :KEYTERM_INDEX: subtree chronological
+#+end_src
+#+begin_src org
+  :KEYTERM_INDEX: buffer alphabetical
+#+end_src
+
+Two commands are available:
++ ~org-keyterm-index-update-buffer~ :: Update every headline's keyterm index in this buffer.
++ ~org-keyterm-index-update-headline-at-point~ :: Update the headline at point's keyterm index.
+
+Users might find it convenient to add ~org-keyterm-index-update-buffer~ to ~before-save-hook~ in org-mode buffers buffer-locally:
+#+begin_src emacs-lisp
+  (add-hook 'org-mode-hook (lambda () (add-hook 'before-save-hook 'org-keyterm-index-update-buffer nil t)))
+#+end_src
+Or with ~add-file-local-variable-prop-line~ or ~add-file-local-variable~.
+
+The vast majority of users will find no need to do more than call the commands provided. However, there are two available options:
++ ~org-keyterm-index-keyword-name~ :: Name of the org keyterm used to store the index contents.
++ ~org-keyterm-index-drawer-name~ :: Name of the drawer used to store the index contents.
+
+* COMMENT Local variables :noexport:
+
+# Local Variables:
+# eval: (add-hook 'before-save-hook 'org-make-toc)
+# End:
+
+#  LocalWords:  toc eval
