@@ -143,6 +143,7 @@ If there is no such property, or if its value is erroneous, return nil."
       ("alphabetical" 'alphabetical)
       ((or "chronological" "nil" (pred not)) 'chronological))))
 
+;; REVIEW 2025-07-11: Should the SCOPE parameter be removed?
 ;; TODO 2025-05-13: Should I locally bind `org-ml-memoize-match-patterns' for
 ;; the pattern I use to detect keyword index drawers?
 ;; FIXME 2025-05-13: Figure out away to have the keyterms picked up ignore the
