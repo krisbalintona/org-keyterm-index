@@ -5,7 +5,7 @@
 ;; Author: Kristoffer Balintona <krisbalintona@gmail.com>
 ;; URL: https://github.com/krisbalintona/org-keyterm-index
 ;; Keywords: text, convenience
-;; Version: 0.1.4
+;; Version: 0.1.0
 ;; Package-Requires: ((emacs "30.1") (org-ml "6.0.2"))
 
 ;; This program is free software; you can redistribute it and/or modify
