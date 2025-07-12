@@ -31,7 +31,7 @@ Sample content
 Sample text.
 
 :KEYTERM_INDEX:
-- bar :: 5
+- bar :: 50
 :END:
 
 ** Content
@@ -39,3 +39,6 @@ Sample text.
 #+keyterm: bar :: 5
 
 * Heading 3
+:PROPERTIES:
+:KEYTERM_INDEX: subtree
+:END:

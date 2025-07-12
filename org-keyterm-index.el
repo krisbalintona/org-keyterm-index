@@ -176,16 +176,19 @@ this property, see the docstring of `org-keyterm-index--get-scope'."
           (org-keyterm-index-generate-index-drawer index-scope index-sorting-type))
          ;; Query for only the first keyterm index drawer
          (index-drawer-query `(:first :any (:and drawer (:drawer-name ,org-keyterm-index-drawer-name)))))
-    ;; REVIEW 2025-05-13: Is there a more efficient way to do this?
-    ;; One that doesn't call `org-ml-match' then `org-ml-match-map*'?
-    (if (org-ml-match index-drawer-query headline)
-        ;; Replace index-drawer (the first keyterm index drawer) in
-        ;; headline
-        (org-ml-match-map* index-drawer-query
-          (org-ml-set-property :post-blank (org-ml-get-property :post-blank it) generated-drawer)
-          headline)
-      ;; When there isn't already an existing keyterm index drawer,
-      ;; add an updated one to the end of the content of HEADLINE
+    (cond
+     ((not generated-drawer) headline)
+     ;; REVIEW 2025-05-13: Is there a more efficient way to do this?
+     ;; One that doesn't call `org-ml-match' then `org-ml-match-map*'?
+     ((org-ml-match index-drawer-query headline)
+      ;; Replace index-drawer (the first keyterm index drawer) in
+      ;; headline
+      (org-ml-match-map* index-drawer-query
+        (org-ml-set-property :post-blank (org-ml-get-property :post-blank it) generated-drawer)
+        headline))
+     ;; When there isn't already an existing keyterm index drawer, add
+     ;; an updated one to the end of the content of HEADLINE
+     (t
       (let* ((supercontents (org-ml-headline-get-supercontents nil headline))
              (post-blank (or (org-ml-get-property :post-blank (car (last (org-ml-headline-get-contents nil headline))))
                              (plist-get supercontents :blank)
@@ -200,7 +203,7 @@ this property, see the docstring of `org-keyterm-index--get-scope'."
           (append (org-ml-supercontents-get-contents supercontents)
                   (list final-drawer))
           supercontents)
-         headline)))))
+         headline))))))
 
 ;;; Commands
 ;;;###autoload
