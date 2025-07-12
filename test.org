@@ -1,0 +1,41 @@
+#+title: Test file
+
+* Heading 1
+
+#+keyterm: foo :: 30
+
+* Keyterm index (buffer)
+:PROPERTIES:
+:KEYTERM_INDEX: buffer alphabetical
+:END:
+
+:KEYTERM_INDEX:
+- bar :: 5
+- baz :: 7
+- foo :: 30
+:END:
+
+** Sample heading
+
+Sample content
+
+* Heading 2
+
+#+keyterm: baz :: 7
+
+* Keyterm Index (subtree)
+:PROPERTIES:
+:KEYTERM_INDEX: subtree
+:END:
+
+Sample text.
+
+:KEYTERM_INDEX:
+- bar :: 5
+:END:
+
+** Content
+
+#+keyterm: bar :: 5
+
+* Heading 3
